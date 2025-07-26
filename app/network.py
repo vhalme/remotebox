@@ -6,17 +6,19 @@ IS_DEV = os.getenv("REMOTEBOX_ENV", "dev") != "prod"
 
 def scan_wifi():
     if IS_DEV:
-        return ["HomeWiFi", "Starlink", "MobileHotspot"]
+        return ["MockWiFi1", "MockWiFi2"]
+
     try:
         result = subprocess.run(
-            ["nmcli", "device", "wifi", "list"],
+            ["iw", "dev", "wlan0", "scan"],
             capture_output=True,
             text=True,
             check=True
         )
-        return parse_wifi(result.stdout)
+        return parse_iw_scan(result.stdout)
     except Exception as e:
         return [f"Error: {e}"]
+
 
 
 def connect_wifi(ssid, password):
@@ -48,11 +50,15 @@ def get_vpn_configs():
     except FileNotFoundError:
         return []
 
-def parse_wifi(output):
-    lines = output.strip().splitlines()[1:]  # Skip header
+def parse_iw_scan(output):
     ssids = []
-    for line in lines:
-        parts = line.split()
-        if parts:
-            ssids.append(parts[0])
+    current_ssid = None
+
+    for line in output.splitlines():
+        line = line.strip()
+        if line.startswith("SSID:"):
+            ssid = line.split("SSID:")[1].strip()
+            if ssid and ssid not in ssids:
+                ssids.append(ssid)
+
     return ssids
