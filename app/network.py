@@ -2,7 +2,7 @@ import subprocess
 import os
 from .config import WG_CONFIG_PATH
 
-IS_DEV = True  # Set to False on Orange Pi
+IS_DEV = os.getenv("REMOTEBOX_ENV", "dev") != "prod"
 
 def scan_wifi():
     if IS_DEV:
