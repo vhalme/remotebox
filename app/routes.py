@@ -1,5 +1,5 @@
 import time, os
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, current_app, send_from_directory, request, jsonify
 from . import state
 if os.getenv("REMOTEBOX_ENV") == "prod":
     from . import network
@@ -10,13 +10,19 @@ bp = Blueprint("main", __name__)
 
 @bp.route("/")
 def index():
+    return send_from_directory(os.path.join(os.getcwd(), "static"), "index.html")
+    
+@bp.route("/wifi_list")
+def wifi_list():
     wifi_list = network.scan_wifi()
     current = network.get_wifi_status()
     current_ssid = current["ssid"] if current["connected"] else None
-    return render_template("index.html", wifi_list=wifi_list, current_ssid=current_ssid)
+    return wifi_list
 
 @bp.route("/connect_wifi", methods=["POST"])
 def connect_wifi():
+  
+    print("[INFO] Connecting to Wi-Fi...")
     ssid = request.form["ssid"]
     password = request.form["password"]
     network.connect_wifi(ssid, password)
