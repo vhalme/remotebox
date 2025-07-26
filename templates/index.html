@@ -3,34 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <title>RemoteBox Wi-Fi Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
   <script src="https://unpkg.com/htmx.org@1.9.2"></script>
   <style>
     body {
       font-family: sans-serif;
-      margin: 2em;
-      max-width: 600px;
+      margin: 1.5em;
+      padding: 0;
+      max-width: 100%;
+      box-sizing: border-box;
     }
+
     h2 {
       margin-top: 1.5em;
+      font-size: 1.3em;
     }
+
     .ssid {
-      padding: 0.5em;
-      margin: 0.5em 0;
+      padding: 1em;
+      margin: 0.7em 0;
       border: 1px solid #ccc;
-      border-radius: 6px;
+      border-radius: 8px;
+      font-size: 1.1em;
       cursor: pointer;
       transition: background 0.2s;
+      user-select: none;
     }
+
     .ssid:hover {
       background: #f0f0f0;
     }
+
     input[type="text"], input[type="password"] {
-      padding: 0.3em;
-      margin-right: 0.5em;
+      padding: 0.6em;
+      margin: 0.5em 0;
+      font-size: 1em;
+      width: 100%;
+      box-sizing: border-box;
     }
+
     button {
-      padding: 0.4em 0.7em;
+      padding: 0.6em 1em;
+      font-size: 1em;
+      margin-right: 0.5em;
+      margin-top: 0.5em;
+    }
+
+    .form-group {
+      margin-bottom: 1em;
     }
   </style>
 </head>
@@ -58,16 +79,13 @@
   </div>
 
   <!-- Available Wi-Fi Networks -->
-  <div x-data="{ selected: null }">
+  <div x-data="{ selected: null }" id="ssid-list">
     <template x-if="!selected">
       <div>
         <h2>Available Networks</h2>
         {% for ssid in wifi_list %}
           {% if ssid != current_ssid %}
-            <div
-              class="ssid"
-              @click="selected = '{{ ssid }}'"
-            >
+            <div class="ssid" @click="selected = '{{ ssid }}'">
               {{ ssid }}
             </div>
           {% endif %}
@@ -85,8 +103,10 @@
         "
       >
         <h2>Connect to <span x-text="selected"></span></h2>
-        <input type="hidden" name="ssid" :value="selected">
-        <input type="text" name="password" placeholder="Password (plain)" required>
+        <div class="form-group">
+          <input type="hidden" name="ssid" :value="selected">
+          <input type="text" name="password" placeholder="Password" required>
+        </div>
         <button type="submit">Connect</button>
         <button type="button" @click="selected = null">Cancel</button>
       </form>

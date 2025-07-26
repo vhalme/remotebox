@@ -11,9 +11,9 @@ bp = Blueprint("main", __name__)
 @bp.route("/")
 def index():
     wifi_list = network.scan_wifi()
-    vpn_configs = network.get_vpn_configs()
-    current_state = state.load_settings()
-    return render_template("index.html", wifi_list=wifi_list, vpn_configs=vpn_configs, state=current_state)
+    current = network.get_wifi_status()
+    current_ssid = current["ssid"] if current["connected"] else None
+    return render_template("index.html", wifi_list=wifi_list, current_ssid=current_ssid)
 
 @bp.route("/connect_wifi", methods=["POST"])
 def connect_wifi():
