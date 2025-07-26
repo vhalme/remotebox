@@ -20,16 +20,30 @@ def scan_wifi():
         return [f"Error: {e}"]
 
 
-
 def connect_wifi(ssid, password):
-    if IS_DEV:
-        print(f"[DEV] Pretend connecting to {ssid} with password {password}")
-        return True
     try:
-        subprocess.run(["nmcli", "dev", "wifi", "connect", ssid, "password", password], check=True)
+        yaml = f"""network:
+  version: 2
+  renderer: networkd
+  wifis:
+    wlan0:
+      dhcp4: true
+      dhcp6: true
+      access-points:
+        "{ssid}":
+          password: "{password}"
+"""
+        with open("/etc/netplan/20-wifi.yaml", "w") as f:
+            f.write(yaml)
+
+        subprocess.run(["chmod", "600", "/etc/netplan/20-wifi.yaml"], check=True)
+        subprocess.run(["netplan", "apply"], check=True)
+
         return True
-    except subprocess.CalledProcessError:
+    except Exception as e:
+        print(f"[ERROR] Failed to connect to Wi-Fi: {e}")
         return False
+
 
 def set_vpn(enabled, config=None):
     if IS_DEV:
