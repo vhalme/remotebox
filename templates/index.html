@@ -2,56 +2,83 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>BoxVPN</title>
+  <title>RemoteBox Wi-Fi Manager</title>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
   <script src="https://unpkg.com/htmx.org@1.9.2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/alpinejs" defer></script>
   <style>
-    body { font-family: sans-serif; padding: 1rem; max-width: 600px; margin: auto; }
-    h2 { margin-top: 2rem; }
-    ul { list-style: none; padding: 0; }
-    li { margin: 0.5rem 0; }
+    body {
+      font-family: sans-serif;
+      margin: 2em;
+      max-width: 600px;
+    }
+    h2 {
+      margin-top: 1.5em;
+    }
+    ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    li {
+      margin: 0.5em 0;
+      padding: 0.5em;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    input[type="text"], input[type="password"] {
+      padding: 0.3em;
+      margin-right: 0.5em;
+    }
+    button {
+      padding: 0.4em 0.7em;
+    }
   </style>
 </head>
-<body x-data="{ vpnEnabled: {{ 'true' if state.vpn_enabled else 'false' }} }">
+<body>
 
-  <h1>BoxVPN</h1>
+  <!-- Current Wi-Fi Status -->
+  <div x-data="{ ssid: '', ip: '', status: 'Checking...' }" x-init="
+      fetch('/wifi_status')
+        .then(r => r.json())
+        .then(data => {
+          if (data.connected) {
+            ssid = data.ssid;
+            ip = data.ip;
+            status = 'Connected';
+          } else {
+            status = 'Not connected';
+          }
+        });
+    " id="wifi-connection-status">
+    <h2>Current Wi-Fi Status</h2>
+    <p><strong>Status:</strong> <span x-text="status"></span></p>
+    <template x-if="status === 'Connected'">
+      <p><strong>SSID:</strong> <span x-text="ssid"></span> | <strong>IP:</strong> <span x-text="ip"></span></p>
+    </template>
+  </div>
 
-  <h2>Wi-Fi Networks</h2>
+  <!-- Available Wi-Fi Networks -->
+  <h2>Available Networks</h2>
   <ul>
     {% for ssid in wifi_list %}
-      <li>
-        <form hx-post="/connect_wifi" hx-target="#wifi-status-{{ loop.index }}" hx-swap="outerHTML">
-          <input type="hidden" name="ssid" value="{{ ssid }}">
-          <strong>{{ ssid }}</strong>
-          <input type="password" name="password" placeholder="Password" required>
-          <button type="submit">Connect</button>
-        </form>
-        <div id="wifi-status-{{ loop.index }}"></div>
-      </li>
+    <li x-data="{ showForm: false }">
+      <button @click="showForm = !showForm">{{ ssid }}</button>
+
+      <form
+        x-show="showForm"
+        hx-post="/connect_wifi"
+        hx-target="#wifi-connection-status"
+        hx-swap="outerHTML"
+        @submit="
+          $el.closest('li').querySelector('button').innerText = 'Connecting...';
+        "
+      >
+        <input type="hidden" name="ssid" value="{{ ssid }}">
+        <input type="text" name="password" placeholder="Password (plain)" required>
+        <button type="submit">Connect</button>
+      </form>
+    </li>
     {% endfor %}
   </ul>
-
-  <h2>VPN Settings</h2>
-  <form hx-post="/toggle_vpn" hx-target="#vpn-status" hx-swap="outerHTML">
-    <label>
-      <input type="checkbox" name="enabled" value="true" x-model="vpnEnabled">
-      VPN Enabled
-    </label>
-    <br>
-    <label>
-      Config:
-      <select name="config">
-        {% for config in vpn_configs %}
-          <option value="{{ config }}">{{ config }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <br>
-    <button type="submit">Apply</button>
-  </form>
-  <div id="vpn-status">
-    Current VPN: {{ 'Enabled' if state.vpn_enabled else 'Disabled' }}
-  </div>
 
 </body>
 </html>

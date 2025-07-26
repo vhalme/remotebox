@@ -76,3 +76,33 @@ def parse_iw_scan(output):
                 ssids.append(ssid)
 
     return ssids
+  
+
+def get_wifi_status():
+    status = {
+        "connected": False,
+        "ssid": None,
+        "ip": None
+    }
+
+    try:
+        result = subprocess.run(["iw", "dev", "wlan0", "link"], capture_output=True, text=True, check=True)
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line.startswith("SSID:"):
+                status["ssid"] = line.split("SSID:")[1].strip()
+                status["connected"] = True
+    except subprocess.CalledProcessError:
+        pass
+
+    try:
+        result = subprocess.run(["ip", "addr", "show", "wlan0"], capture_output=True, text=True, check=True)
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line.startswith("inet "):
+                status["ip"] = line.split()[1]
+    except subprocess.CalledProcessError:
+        pass
+
+    return status
+
