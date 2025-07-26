@@ -1,0 +1,19 @@
+# Bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+venv/
+
+# Environment files
+.env
+
+# System files
+.DS_Store
+
+# State and config
+data/settings.json
+
+# Logs or temp
+*.log

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BoxVPN</title>
+  <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs" defer></script>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; max-width: 600px; margin: auto; }
+    h2 { margin-top: 2rem; }
+    ul { list-style: none; padding: 0; }
+    li { margin: 0.5rem 0; }
+  </style>
+</head>
+<body x-data="{ vpnEnabled: {{ 'true' if state.vpn_enabled else 'false' }} }">
+
+  <h1>BoxVPN</h1>
+
+  <h2>Wi-Fi Networks</h2>
+  <ul>
+    {% for ssid in wifi_list %}
+      <li>
+        <form hx-post="/connect_wifi" hx-target="#wifi-status-{{ loop.index }}" hx-swap="outerHTML">
+          <input type="hidden" name="ssid" value="{{ ssid }}">
+          <strong>{{ ssid }}</strong>
+          <input type="password" name="password" placeholder="Password" required>
+          <button type="submit">Connect</button>
+        </form>
+        <div id="wifi-status-{{ loop.index }}"></div>
+      </li>
+    {% endfor %}
+  </ul>
+
+  <h2>VPN Settings</h2>
+  <form hx-post="/toggle_vpn" hx-target="#vpn-status" hx-swap="outerHTML">
+    <label>
+      <input type="checkbox" name="enabled" value="true" x-model="vpnEnabled">
+      VPN Enabled
+    </label>
+    <br>
+    <label>
+      Config:
+      <select name="config">
+        {% for config in vpn_configs %}
+          <option value="{{ config }}">{{ config }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <br>
+    <button type="submit">Apply</button>
+  </form>
+  <div id="vpn-status">
+    Current VPN: {{ 'Enabled' if state.vpn_enabled else 'Disabled' }}
+  </div>
+
+</body>
+</html>
