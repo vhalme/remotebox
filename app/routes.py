@@ -1,6 +1,10 @@
-import time
+import time, os
 from flask import Blueprint, render_template, request, jsonify
-from . import network, state
+from . import state
+if os.getenv("REMOTEBOX_ENV") == "prod":
+    from . import network
+else:
+    from . import network_mock as network
 
 bp = Blueprint("main", __name__)
 

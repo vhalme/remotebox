@@ -14,15 +14,16 @@
     h2 {
       margin-top: 1.5em;
     }
-    ul {
-      list-style: none;
-      padding-left: 0;
-    }
-    li {
-      margin: 0.5em 0;
+    .ssid {
       padding: 0.5em;
+      margin: 0.5em 0;
       border: 1px solid #ccc;
       border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .ssid:hover {
+      background: #f0f0f0;
     }
     input[type="text"], input[type="password"] {
       padding: 0.3em;
@@ -57,28 +58,40 @@
   </div>
 
   <!-- Available Wi-Fi Networks -->
-  <h2>Available Networks</h2>
-  <ul>
-    {% for ssid in wifi_list %}
-    <li x-data="{ showForm: false }">
-      <button @click="showForm = !showForm">{{ ssid }}</button>
+  <div x-data="{ selected: null }">
+    <template x-if="!selected">
+      <div>
+        <h2>Available Networks</h2>
+        {% for ssid in wifi_list %}
+          {% if ssid != current_ssid %}
+            <div
+              class="ssid"
+              @click="selected = '{{ ssid }}'"
+            >
+              {{ ssid }}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </template>
 
+    <template x-if="selected">
       <form
-        x-show="showForm"
         hx-post="/connect_wifi"
         hx-target="#wifi-connection-status"
         hx-swap="outerHTML"
         @submit="
-          $el.closest('li').querySelector('button').innerText = 'Connecting...';
+          document.getElementById('ssid-list').innerHTML = '<p>Connecting...</p>';
         "
       >
-        <input type="hidden" name="ssid" value="{{ ssid }}">
+        <h2>Connect to <span x-text="selected"></span></h2>
+        <input type="hidden" name="ssid" :value="selected">
         <input type="text" name="password" placeholder="Password (plain)" required>
         <button type="submit">Connect</button>
+        <button type="button" @click="selected = null">Cancel</button>
       </form>
-    </li>
-    {% endfor %}
-  </ul>
+    </template>
+  </div>
 
 </body>
 </html>
