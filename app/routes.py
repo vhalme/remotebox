@@ -21,33 +21,10 @@ def wifi_list():
 
 @bp.route("/connect_wifi", methods=["POST"])
 def connect_wifi():
-  
     print("[INFO] Connecting to Wi-Fi...")
-    ssid = request.form["ssid"]
-    password = request.form["password"]
-    network.connect_wifi(ssid, password)
-
-    time.sleep(4)  # Wait for netplan to apply
-
-    status = network.get_wifi_status()
-
-    if status["connected"] and status["ssid"] == ssid:
-        msg = f"""
-        <div id='wifi-connection-status'>
-          <h2>Current Wi-Fi Status</h2>
-          <p><strong>Status:</strong> Connected</p>
-          <p><strong>SSID:</strong> {status['ssid']} | <strong>IP:</strong> {status['ip']}</p>
-        </div>
-        """
-    else:
-        msg = f"""
-        <div id='wifi-connection-status'>
-          <h2>Current Wi-Fi Status</h2>
-          <p><strong>Status:</strong> ❌ Failed to connect to {ssid}</p>
-        </div>
-        """
-
-    return msg
+    print("Form data:", request.form)
+    
+    return "msg"
 
 
 @bp.route("/toggle_vpn", methods=["POST"])
