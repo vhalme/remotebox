@@ -44,9 +44,10 @@ def connect_wifi(ssid, password):
         # Backup existing config
         if os.path.exists(main_yaml_path):
             shutil.copy(main_yaml_path, backup_yaml_path)
+            os.remove(main_yaml_path)
 
         # Write temporary config
-        with open(temp_yaml_path, "w") as f:
+        with open(main_yaml_path, "w") as f:
             f.write(new_yaml)
 
         subprocess.run(["chmod", "600", temp_yaml_path], check=True)
@@ -74,11 +75,10 @@ def connect_wifi(ssid, password):
         print(f"[ERROR] Wi-Fi connection failed: {e}")
         # Restore previous config if we had one
         if os.path.exists(backup_yaml_path):
+            os.remove(main_yaml_path)
             shutil.copy(backup_yaml_path, main_yaml_path)
             subprocess.run(["netplan", "apply"])
             subprocess.run(["systemctl", "restart", "wg-quick@wg0.service"])
-        if os.path.exists(temp_yaml_path):
-            os.remove(temp_yaml_path)
         return False
 
 
