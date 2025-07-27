@@ -39,7 +39,7 @@ def connect_wifi(ssid, password):
 """
 
     try:
-        print(f'Connect to {ssid}...')
+        print(f'Replace config to {ssid}...')
         # Backup existing config
         if os.path.exists(main_yaml_path):
             shutil.copy(main_yaml_path, backup_yaml_path)
@@ -50,21 +50,14 @@ def connect_wifi(ssid, password):
             f.write(new_yaml)
 
         subprocess.run(["chmod", "600", main_yaml_path], check=True)
+        
+        print(f'Apply config...')
         subprocess.run(["netplan", "apply"], check=True)
 
-        # Wait briefly and check connection
+        print(f'Wait 5s')
         time.sleep(5)
 
-        # Check if we're connected to the desired SSID
-        result = subprocess.run(["iw", "dev", "wlan0", "link"], capture_output=True, text=True)
-        
-        print(f'Connection check: {result.stdout} [{result.stderr}]')
-        if f'SSID: {ssid}' in result.stdout:
-            subprocess.run(["wg-quick", "down", "wg0"])
-            subprocess.run(["wg-quick", "up", "wg0"])
-            return True
-        else:
-            raise Exception("Connection failed or SSID mismatch")
+        wait_for_ssid_and_restart_vpn(ssid, 3, 5)
 
     except Exception as e:
         print(f"[ERROR] Wi-Fi connection failed: {e}")
@@ -78,7 +71,28 @@ def connect_wifi(ssid, password):
         return False
 
 
+def wait_for_ssid_and_restart_vpn(ssid, max_attempts=3, delay=5):
+    for attempt in range(1, max_attempts + 1):
+        result = subprocess.run(
+            ["iw", "dev", "wlan0", "link"],
+            capture_output=True,
+            text=True
+        )
 
+        print(f"[Attempt {attempt}] Connection check: {result.stdout.strip()} [{result.stderr.strip()}]")
+
+        if f'SSID: {ssid}' in result.stdout:
+            print(f"[INFO] Successfully connected to {ssid}. Restarting WireGuard...")
+            subprocess.run(["wg-quick", "down", "wg0"])
+            subprocess.Popen(["wg-quick", "up", "wg0"])  # use Popen to avoid blocking Flask
+            return True
+
+        if attempt < max_attempts:
+            print(f"[INFO] Not connected to {ssid}, retrying in {delay} seconds...")
+            time.sleep(delay)
+
+    raise Exception(f"[ERROR] Failed to connect to {ssid} after {max_attempts} attempts")
+  
 def set_vpn(enabled, config=None):
     if IS_DEV:
         print(f"[DEV] VPN {'enabled' if enabled else 'disabled'} with config {config}")
