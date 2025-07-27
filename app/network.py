@@ -11,7 +11,7 @@ def scan_wifi():
             text=True,
             check=True
         )
-        print(result)
+        print("Scan complete")
         return parse_iw_scan(result.stdout)
     except Exception as e:
         return [f"Error: {e}"]
