@@ -95,7 +95,7 @@ def wait_for_ssid_and_restart_vpn(ssid, max_attempts=3, delay=5):
               subprocess.Popen(["wg-quick", "up", "wg0"])  # use Popen to avoid blocking Flask
               return True
             else:
-              Exception(f"[ERROR] Failed to connect, wrong password")
+              raise Exception(f"[ERROR] Failed to connect, wrong password")
         if attempt < max_attempts:
             print(f"[INFO] Not connected to {ssid}, retrying in {delay} seconds...")
             time.sleep(delay)
