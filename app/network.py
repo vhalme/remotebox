@@ -2,12 +2,7 @@ import subprocess
 import os
 from .config import WG_CONFIG_PATH
 
-IS_DEV = os.getenv("REMOTEBOX_ENV", "dev") != "prod"
-
 def scan_wifi():
-    if IS_DEV:
-        return ["MockWiFi1", "MockWiFi2"]
-
     try:
         result = subprocess.run(
             ["iw", "dev", "wlan0", "scan"],
@@ -23,16 +18,16 @@ def scan_wifi():
 def connect_wifi(ssid, password):
     try:
         yaml = f"""network:
-  version: 2
-  renderer: networkd
-  wifis:
-    wlan0:
-      dhcp4: true
-      dhcp6: true
-      access-points:
-        "{ssid}":
-          password: "{password}"
-"""
+                  version: 2
+                  renderer: networkd
+                  wifis:
+                    wlan0:
+                      dhcp4: true
+                      dhcp6: true
+                      access-points:
+                        "{ssid}":
+                          password: "{password}"
+                """
         with open("/etc/netplan/20-wifi.yaml", "w") as f:
             f.write(yaml)
 

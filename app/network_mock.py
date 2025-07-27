@@ -1,4 +1,5 @@
 # network_mock.py — fully mocked version for dev use
+import time
 
 def scan_wifi():
     return ["HomeNetwork", "CoffeeShopWiFi", "MyPhoneHotspot"]
