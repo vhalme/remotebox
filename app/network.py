@@ -17,29 +17,65 @@ def scan_wifi():
         return [f"Error: {e}"]
 
 
-def connect_wifi(ssid, password):
-    try:
-        yaml = f"""network:
-                  version: 2
-                  renderer: networkd
-                  wifis:
-                    wlan0:
-                      dhcp4: true
-                      dhcp6: true
-                      access-points:
-                        "{ssid}":
-                          password: "{password}"
-                """
-        with open("/etc/netplan/20-wifi.yaml", "w") as f:
-            f.write(yaml)
+import subprocess
+import time
+import os
+import shutil
 
-        subprocess.run(["chmod", "600", "/etc/netplan/20-wifi.yaml"], check=True)
+def connect_wifi(ssid, password):
+    temp_yaml_path = "/etc/netplan/99-temp-wifi.yaml"
+    main_yaml_path = "/etc/netplan/20-wifi.yaml"
+    backup_yaml_path = "/etc/netplan/20-wifi.yaml.bak"
+
+    new_yaml = f"""network:
+  version: 2
+  renderer: networkd
+  wifis:
+    wlan0:
+      dhcp4: true
+      dhcp6: true
+      access-points:
+        "{ssid}":
+          password: "{password}"
+"""
+
+    try:
+        # Backup existing config
+        if os.path.exists(main_yaml_path):
+            shutil.copy(main_yaml_path, backup_yaml_path)
+
+        # Write temporary config
+        with open(temp_yaml_path, "w") as f:
+            f.write(new_yaml)
+
+        subprocess.run(["chmod", "600", temp_yaml_path], check=True)
         subprocess.run(["netplan", "apply"], check=True)
 
-        return True
+        # Wait briefly and check connection
+        time.sleep(5)
+
+        # Check if we're connected to the desired SSID
+        result = subprocess.run(["iw", "dev", "wlan0", "link"], capture_output=True, text=True)
+        if f'SSID: {ssid}' in result.stdout:
+            # Success — make it permanent
+            with open(main_yaml_path, "w") as f:
+                f.write(new_yaml)
+            subprocess.run(["chmod", "600", main_yaml_path], check=True)
+            os.remove(temp_yaml_path)
+            return True
+        else:
+            raise Exception("Connection failed or SSID mismatch")
+
     except Exception as e:
-        print(f"[ERROR] Failed to connect to Wi-Fi: {e}")
+        print(f"[ERROR] Wi-Fi connection failed: {e}")
+        # Restore previous config if we had one
+        if os.path.exists(backup_yaml_path):
+            shutil.copy(backup_yaml_path, main_yaml_path)
+            subprocess.run(["netplan", "apply"])
+        if os.path.exists(temp_yaml_path):
+            os.remove(temp_yaml_path)
         return False
+
 
 
 def set_vpn(enabled, config=None):
