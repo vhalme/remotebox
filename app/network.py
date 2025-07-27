@@ -23,7 +23,6 @@ import os
 import shutil
 
 def connect_wifi(ssid, password):
-    temp_yaml_path = "/etc/netplan/99-temp-wifi.yaml"
     main_yaml_path = "/etc/netplan/20-wifi.yaml"
     backup_yaml_path = "/etc/netplan/20-wifi.yaml.bak"
 
@@ -50,7 +49,7 @@ def connect_wifi(ssid, password):
         with open(main_yaml_path, "w") as f:
             f.write(new_yaml)
 
-        subprocess.run(["chmod", "600", temp_yaml_path], check=True)
+        subprocess.run(["chmod", "600", main_yaml_path], check=True)
         subprocess.run(["netplan", "apply"], check=True)
 
         # Wait briefly and check connection
@@ -61,11 +60,6 @@ def connect_wifi(ssid, password):
         
         print(f'Connection check: {result.stdout} [{result.stderr}]')
         if f'SSID: {ssid}' in result.stdout:
-            # Success — make it permanent
-            with open(main_yaml_path, "w") as f:
-                f.write(new_yaml)
-            subprocess.run(["chmod", "600", main_yaml_path], check=True)
-            os.remove(temp_yaml_path)
             subprocess.run(["systemctl", "restart", "wg-quick@wg0.service"])
             return True
         else:
