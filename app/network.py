@@ -4,12 +4,14 @@ from .config import WG_CONFIG_PATH
 
 def scan_wifi():
     try:
+        print("Scanning Wi-Fi")
         result = subprocess.run(
             ["iw", "dev", "wlan0", "scan"],
             capture_output=True,
             text=True,
             check=True
         )
+        print(result)
         return parse_iw_scan(result.stdout)
     except Exception as e:
         return [f"Error: {e}"]
