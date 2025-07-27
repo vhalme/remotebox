@@ -40,6 +40,7 @@ def connect_wifi(ssid, password):
 """
 
     try:
+        print(f'Connect to {ssid}...')
         # Backup existing config
         if os.path.exists(main_yaml_path):
             shutil.copy(main_yaml_path, backup_yaml_path)
@@ -56,6 +57,8 @@ def connect_wifi(ssid, password):
 
         # Check if we're connected to the desired SSID
         result = subprocess.run(["iw", "dev", "wlan0", "link"], capture_output=True, text=True)
+        
+        print(f'Connection check: {result.stdout} [{result.stderr}]')
         if f'SSID: {ssid}' in result.stdout:
             # Success — make it permanent
             with open(main_yaml_path, "w") as f:
