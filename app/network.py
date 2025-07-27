@@ -62,6 +62,7 @@ def connect_wifi(ssid, password):
                 f.write(new_yaml)
             subprocess.run(["chmod", "600", main_yaml_path], check=True)
             os.remove(temp_yaml_path)
+            subprocess.run(["systemctl", "restart", "wg-quick@wg0.service"])
             return True
         else:
             raise Exception("Connection failed or SSID mismatch")
@@ -72,6 +73,7 @@ def connect_wifi(ssid, password):
         if os.path.exists(backup_yaml_path):
             shutil.copy(backup_yaml_path, main_yaml_path)
             subprocess.run(["netplan", "apply"])
+            subprocess.run(["systemctl", "restart", "wg-quick@wg0.service"])
         if os.path.exists(temp_yaml_path):
             os.remove(temp_yaml_path)
         return False
