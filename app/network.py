@@ -82,11 +82,20 @@ def wait_for_ssid_and_restart_vpn(ssid, max_attempts=3, delay=5):
         print(f"[Attempt {attempt}] Connection check: {result.stdout.strip()} [{result.stderr.strip()}]")
 
         if f'SSID: {ssid}' in result.stdout:
-            print(f"[INFO] Successfully connected to {ssid}. Restarting WireGuard...")
-            subprocess.run(["wg-quick", "down", "wg0"])
-            subprocess.Popen(["wg-quick", "up", "wg0"])  # use Popen to avoid blocking Flask
-            return True
-
+            print(f"[INFO] Initial status check successful, waiting 6 s.")
+            time.sleep(6)
+            result = subprocess.run(
+              ["iw", "dev", "wlan0", "link"],
+              capture_output=True,
+              text=True
+            )
+            if f'SSID: {ssid}' in result.stdout:
+              print(f"[INFO] Successfully connected to {ssid}. Restarting WireGuard...")
+              subprocess.run(["wg-quick", "down", "wg0"])
+              subprocess.Popen(["wg-quick", "up", "wg0"])  # use Popen to avoid blocking Flask
+              return True
+            else:
+              Exception(f"[ERROR] Failed to connect, wrong password")
         if attempt < max_attempts:
             print(f"[INFO] Not connected to {ssid}, retrying in {delay} seconds...")
             time.sleep(delay)
