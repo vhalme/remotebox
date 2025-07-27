@@ -65,7 +65,8 @@ def connect_wifi(ssid, password):
         if os.path.exists(backup_yaml_path):
             os.remove(main_yaml_path)
             shutil.copy(backup_yaml_path, main_yaml_path)
-            subprocess.run(["netplan", "apply"])
+            subprocess.run(["netplan", "apply"], check=True)
+            time.sleep(6)
             subprocess.run(["wg-quick", "down", "wg0"])
             subprocess.run(["wg-quick", "up", "wg0"])
         return False
