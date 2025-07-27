@@ -60,7 +60,8 @@ def connect_wifi(ssid, password):
         
         print(f'Connection check: {result.stdout} [{result.stderr}]')
         if f'SSID: {ssid}' in result.stdout:
-            subprocess.Popen(["systemctl", "restart", "wg-quick@wg0.service"])
+            subprocess.run(["wg-quick", "down", "wg0"])
+            subprocess.run(["wg-quick", "up", "wg0"])
             return True
         else:
             raise Exception("Connection failed or SSID mismatch")
@@ -72,7 +73,8 @@ def connect_wifi(ssid, password):
             os.remove(main_yaml_path)
             shutil.copy(backup_yaml_path, main_yaml_path)
             subprocess.run(["netplan", "apply"])
-            subprocess.Popen(["systemctl", "restart", "wg-quick@wg0.service"])
+            subprocess.run(["wg-quick", "down", "wg0"])
+            subprocess.run(["wg-quick", "up", "wg0"])
         return False
 
 
