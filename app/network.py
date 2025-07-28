@@ -1,4 +1,5 @@
 import subprocess
+import time
 import os
 from .config import WG_CONFIG_PATH
 
@@ -16,92 +17,105 @@ def scan_wifi():
     except Exception as e:
         return [f"Error: {e}"]
 
-
-import subprocess
-import time
-import os
-import shutil
-
+def get_current_network():
+    result = subprocess.run(["wpa_cli", "-i", "wlan0", "list_networks"], capture_output=True, text=True)
+    for line in result.stdout.strip().splitlines()[1:]:  # skip header
+        parts = line.strip().split("\t")
+        if len(parts) >= 4 and parts[3] == "[CURRENT]":
+            return {"id": parts[0], "ssid": parts[1]}
+    return None
+  
 def connect_wifi(ssid, password):
-    main_yaml_path = "/etc/netplan/20-wifi.yaml"
-    backup_yaml_path = "/etc/netplan/20-wifi.yaml.bak"
-
-    new_yaml = f"""network:
-  version: 2
-  renderer: networkd
-  wifis:
-    wlan0:
-      dhcp4: true
-      dhcp6: true
-      access-points:
-        "{ssid}":
-          password: "{password}"
-"""
-
     try:
-        print(f'Replace config to {ssid}...')
-        # Backup existing config
-        if os.path.exists(main_yaml_path):
-            shutil.copy(main_yaml_path, backup_yaml_path)
-            os.remove(main_yaml_path)
+        print(f"[INFO] Connecting to Wi-Fi SSID: {ssid}")
 
-        # Write temporary config
-        with open(main_yaml_path, "w") as f:
-            f.write(new_yaml)
+        # Save current network info
+        current = get_current_network()
+        if current:
+            print(f"[INFO] Current network: {current['ssid']} (ID {current['id']})")
+        else:
+            print("[INFO] No active network to revert to.")
 
-        subprocess.run(["chmod", "600", main_yaml_path], check=True)
-        
-        print(f'Apply config...')
-        subprocess.run(["netplan", "apply"], check=True)
+        # Add new network
+        result = subprocess.run(["wpa_cli", "-i", "wlan0", "add_network"], capture_output=True, text=True)
+        net_id = result.stdout.strip()
+        if not net_id.isdigit():
+            raise Exception(f"Could not add network: {result.stderr.strip()}")
+        print(f"[INFO] Network ID: {net_id}")
 
-        print(f'Wait 5s')
-        time.sleep(5)
+        subprocess.run(["wpa_cli", "-i", "wlan0", "set_network", net_id, "ssid", f'"{ssid}"'], check=True)
+        subprocess.run(["wpa_cli", "-i", "wlan0", "set_network", net_id, "psk", f'"{password}"'], check=True)
+        subprocess.run(["wpa_cli", "-i", "wlan0", "enable_network", net_id], check=True)
+        subprocess.run(["wpa_cli", "-i", "wlan0", "select_network", net_id], check=True)
+        subprocess.run(["wpa_cli", "-i", "wlan0", "save_config"], check=True)
 
-        wait_for_ssid_and_restart_vpn(ssid, 3, 5)
+        # Wait for confirmation
+        wait_for_ssid_and_restart_vpn(ssid)
+
+        print(f"[INFO] Successfully connected to {ssid}")
+        return True
 
     except Exception as e:
         print(f"[ERROR] Wi-Fi connection failed: {e}")
-        # Restore previous config if we had one
-        if os.path.exists(backup_yaml_path):
-            os.remove(main_yaml_path)
-            shutil.copy(backup_yaml_path, main_yaml_path)
-            subprocess.run(["netplan", "apply"], check=True)
-            time.sleep(6)
-            subprocess.run(["wg-quick", "down", "wg0"])
-            subprocess.run(["wg-quick", "up", "wg0"])
+        if current:
+            print(f"[INFO] Reverting to previous network {current['ssid']} (ID {current['id']})...")
+            subprocess.run(["wpa_cli", "-i", "wlan0", "select_network", current["id"]], check=False)
+            subprocess.run(["wpa_cli", "-i", "wlan0", "enable_network", current["id"]], check=False)
+            subprocess.run(["wpa_cli", "-i", "wlan0", "save_config"], check=False)
+            subprocess.run(["wpa_cli", "-i", "wlan0", "remove_network", net_id], check=False)
+        else:
+            print("[WARN] No previous network to revert to.")
         return False
 
+      
 
-def wait_for_ssid_and_restart_vpn(ssid, max_attempts=3, delay=5):
+def wait_for_ssid_and_restart_vpn(ssid, max_attempts=5, delay=3):
+    """
+    Waits for the system to connect to the specified SSID.
+    Once confirmed, restarts WireGuard VPN (wg0).
+    """
     for attempt in range(1, max_attempts + 1):
-        result = subprocess.run(
-            ["iw", "dev", "wlan0", "link"],
-            capture_output=True,
-            text=True
-        )
-
-        print(f"[Attempt {attempt}] Connection check: {result.stdout.strip()} [{result.stderr.strip()}]")
-
-        if f'SSID: {ssid}' in result.stdout:
-            print(f"[INFO] Initial status check successful, waiting 6 s.")
-            time.sleep(6)
+        print(f"[INFO] Attempt {attempt}/{max_attempts} — checking connection to '{ssid}'...")
+        
+        try:
             result = subprocess.run(
-              ["iw", "dev", "wlan0", "link"],
-              capture_output=True,
-              text=True
+                ["wpa_cli", "-i", "wlan0", "status"],
+                capture_output=True,
+                text=True,
+                check=True
             )
-            if f'SSID: {ssid}' in result.stdout:
-              print(f"[INFO] Successfully connected to {ssid}. Restarting WireGuard...")
-              subprocess.run(["wg-quick", "down", "wg0"])
-              subprocess.Popen(["wg-quick", "up", "wg0"])  # use Popen to avoid blocking Flask
-              return True
-            else:
-              raise Exception(f"[ERROR] Failed to connect, wrong password")
-        if attempt < max_attempts:
-            print(f"[INFO] Not connected to {ssid}, retrying in {delay} seconds...")
-            time.sleep(delay)
+            status_output = result.stdout
 
-    raise Exception(f"[ERROR] Failed to connect to {ssid} after {max_attempts} attempts")
+            state = None
+            connected_ssid = None
+            for line in status_output.splitlines():
+                if line.startswith("wpa_state="):
+                    state = line.split("=", 1)[1]
+                elif line.startswith("ssid="):
+                    connected_ssid = line.split("=", 1)[1]
+
+            if state == "COMPLETED" and connected_ssid == ssid:
+                print(f"[SUCCESS] Connected to SSID: {ssid}")
+                
+                # Optional: delay to allow DHCP/route to settle
+                time.sleep(2)
+
+                # Restart WireGuard VPN
+                print("[INFO] Restarting WireGuard VPN (wg0)...")
+                subprocess.run(["wg-quick", "down", "wg0"], check=False)
+                subprocess.Popen(["wg-quick", "up", "wg0"])  # Don't block on wg0
+
+                return True
+
+            print(f"[INFO] State={state}, Connected SSID={connected_ssid} — not yet correct")
+        
+        except subprocess.CalledProcessError as e:
+            print(f"[ERROR] wpa_cli failed: {e.stderr.strip() if e.stderr else str(e)}")
+
+        time.sleep(delay)
+
+    raise Exception(f"[ERROR] Failed to connect to SSID '{ssid}' after {max_attempts} attempts")
+
   
 def set_vpn(enabled, config=None):
     if IS_DEV:
